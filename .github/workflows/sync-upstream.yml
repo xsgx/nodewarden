@@ -10,34 +10,24 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout code
+      - name: Checkout your repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Configure git identity
+
+      - name: Clone upstream repo into temp folder
+        run: |
+          git clone --depth=1 https://github.com/shuaiplus/NodeWarden.git upstream-tmp
+          cd upstream-tmp
+          git checkout main
+
+      - name: Sync files (exclude .github folder entirely)
+        run: |
+          rsync -av --exclude='.github' upstream-tmp/ ./
+
+      - name: Git commit & push
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Add upstream remote
-        run: git remote add upstream https://github.com/shuaiplus/NodeWarden.git
-      
-      - name: Fetch upstream
-        run: git fetch upstream main
-      
-      - name: Merge upstream main，处理冲突并保留本地workflows
-        run: |
-          # 合并上游
-          git merge upstream/main --allow-unrelated-histories -X theirs || true
-          # 如果出现modify/delete冲突，告诉git保留本地的sync-upstream.yml
-          git checkout --ours .github/workflows/sync-upstream.yml
-          # 全部workflow目录以本地版本为准
-          git checkout HEAD -- .github/workflows
-          # 添加到暂存区
           git add .
-          # 提交合并
-          git commit -m "Auto sync upstream NodeWarden"
-      
-      - name: Push back to repo
-        run: git push origin main
+          # 没有变更就不提交，避免报错
+          git commit -m "Auto sync NodeWarden upstream" || echo "No file changes"
+          git push origin main
