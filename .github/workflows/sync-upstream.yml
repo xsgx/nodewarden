@@ -15,6 +15,12 @@ jobs:
         with:
           fetch-depth: 0
       
+      # 【移到前面！】提前设置git提交身份
+      - name: Configure git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Add upstream remote
         run: git remote add upstream https://github.com/shuaiplus/NodeWarden.git
       
@@ -28,7 +34,4 @@ jobs:
           git checkout HEAD -- .github/workflows
       
       - name: Push back to repo
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git push origin main
+        run: git push origin main
