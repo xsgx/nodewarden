@@ -1,9 +1,8 @@
-name: Sync Upstream
-
+name: Sync upstream
 on:
   schedule:
-    - cron: '0 3 * * *'        # 每天 UTC 03:00 自动同步
-  workflow_dispatch:             # 也支持手动触发
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 
 jobs:
   sync:
@@ -11,7 +10,30 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Sync fork with upstream
-        run: gh repo sync ${{ github.repository }} -b main --force
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download upstream tarball
+        run: |
+          curl -L https://github.com/shuaiplus/NodeWarden/archive/refs/heads/main.tar.gz -o upstream.tar.gz
+          mkdir upstream-tmp
+          tar -xf upstream.tar.gz -C upstream-tmp --strip-components=1
+          # 删除上游包里的.github，源里就不带workflow
+          rm -rf upstream-tmp/.github
+
+      - name: Copy files, preserve local .github
+        run: |
+          # 只复制业务文件，不覆盖目标仓库的.github
+          cp -r upstream-tmp/* ./
+          rm -rf upstream-tmp upstream.tar.gz
+          # 关键：从git暂存区移除所有.github相关改动，保证commit不包含workflow文件
+          git reset HEAD .github || true
+          git checkout -- .github || true
+
+      - name: Commit & Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Auto sync upstream" || echo "No changes"
+          git push origin main
